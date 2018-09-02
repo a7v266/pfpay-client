@@ -1,0 +1,46 @@
+variables:
+  SENCHA_IMAGE: a7v266/sencha:6.5.3.6
+  DOCKER_IMAGE: docker:18.03.0-ce
+
+stages:
+  - build_application
+  - create_image
+
+before_script:
+  - export DOCKER_REGISTRY=ci.software-com.ru:5000
+  - export DOCKER_REGISTRY_USER=gitlab
+  - export DOCKER_REGISTRY_PASSWORD=Twynd1flatpiOv!
+
+  - export PFPAY_CLIENT_PROJECT=pf/pfpay-client
+  - export PFPAY_VERSION=$CI_COMMIT_REF_SLUG
+  - export PFPAY_CLIENT_IMAGE=$DOCKER_REGISTRY/$PFPAY_CLIENT_PROJECT:$PFPAY_VERSION
+
+build_application:
+  stage: build_application
+  image: $SENCHA_IMAGE
+
+  script:
+    - export
+    - sencha build production
+
+  artifacts:
+    expire_in: 30 min
+    paths:
+      - build
+
+create_image:
+  stage: create_image
+  image: $DOCKER_IMAGE
+
+  script:
+    - export
+
+    - docker build --tag $PFPAY_CLIENT_IMAGE .
+    - docker login -u $DOCKER_REGISTRY_USER -p $DOCKER_REGISTRY_PASSWORD $DOCKER_REGISTRY
+    - docker push $PFPAY_CLIENT_IMAGE
+    - docker logout $DOCKER_REGISTRY
+
+  only:
+    - master
+    - /^release*/
+
